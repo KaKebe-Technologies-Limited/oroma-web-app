@@ -1,0 +1,436 @@
+/* Oroma TV Custom Styles */
+:root {
+    --primary-red: #dc2626;
+    --secondary-red: #b91c1c;
+    --dark-bg: #111827;
+    --darker-bg: #000000;
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+}
+
+/* Base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #111827 0%, #000000 100%);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-red);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-red);
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Floating reaction animation */
+@keyframes floatUp {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) scale(1.2);
+        opacity: 0;
+    }
+}
+
+.floating-reaction {
+    position: absolute;
+    pointer-events: none;
+    font-size: 24px;
+    animation: floatUp 2s ease-out forwards;
+    z-index: 1000;
+}
+
+/* Audio visualizer bars */
+.audio-visualizer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    gap: 2px;
+}
+
+.visualizer-bar {
+    width: 3px;
+    background: var(--primary-red);
+    border-radius: 2px;
+    animation: visualizer 1s ease-in-out infinite alternate;
+}
+
+.visualizer-bar:nth-child(2) { animation-delay: 0.1s; }
+.visualizer-bar:nth-child(3) { animation-delay: 0.2s; }
+.visualizer-bar:nth-child(4) { animation-delay: 0.3s; }
+.visualizer-bar:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes visualizer {
+    0% { height: 10px; }
+    100% { height: 40px; }
+}
+
+/* Stream status indicator */
+.stream-status {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--primary-red);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    margin-right: 8px;
+}
+
+/* Live chat styling */
+.chat-message {
+    padding: 8px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.chat-username {
+    font-weight: 600;
+    color: var(--primary-red);
+    font-size: 0.875rem;
+}
+
+.chat-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+.chat-content {
+    margin-top: 4px;
+    font-size: 0.875rem;
+}
+
+/* Reaction buttons */
+.reaction-btn {
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.reaction-btn:hover {
+    transform: scale(1.1);
+    background: rgba(220, 38, 38, 0.2);
+}
+
+.reaction-btn:active {
+    transform: scale(0.95);
+}
+
+/* Loading states */
+.loading-spinner {
+    border: 2px solid transparent;
+    border-top: 2px solid var(--primary-red);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive video container */
+.video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+    background: #000;
+    border-radius: 8px;
+}
+
+.video-container video,
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Progress bar for live stream */
+.live-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.live-progress-fill {
+    height: 100%;
+    background: var(--primary-red);
+    width: 100%;
+    position: relative;
+}
+
+.live-progress-dot {
+    position: absolute;
+    right: -6px;
+    top: -4px;
+    width: 12px;
+    height: 12px;
+    background: var(--primary-red);
+    border-radius: 50%;
+    cursor: pointer;
+    animation: pulse 2s infinite;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .video-container {
+        padding-bottom: 75%; /* More square for mobile */
+    }
+    
+    .reaction-btn {
+        padding: 8px;
+        font-size: 18px;
+    }
+    
+    .chat-message {
+        padding: 6px;
+        font-size: 0.8rem;
+    }
+    
+    .floating-reaction {
+        font-size: 20px;
+    }
+}
+
+/* Form styling */
+.form-input {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #374151;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    width: 100%;
+    transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-red);
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+.form-input::placeholder {
+    color: #9ca3af;
+}
+
+.btn-primary {
+    background: var(--primary-red);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: var(--secondary-red);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* News card hover effects */
+.news-card {
+    transition: all 0.3s ease;
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.news-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.news-card img {
+    transition: transform 0.3s ease;
+}
+
+.news-card:hover img {
+    transform: scale(1.05);
+}
+
+/* Event card styling */
+.event-card {
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.event-card:hover {
+    transform: translateY(-2px);
+    background: rgba(0, 0, 0, 0.7);
+}
+
+/* Navigation enhancements */
+.nav-link {
+    position: relative;
+    transition: color 0.2s ease;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--primary-red);
+    transition: width 0.2s ease;
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+    width: 100%;
+}
+
+/* Utility classes */
+.text-gradient {
+    background: linear-gradient(45deg, var(--primary-red), #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shadow-glow {
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--primary-red);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease-out;
+}
+
+.toast.success {
+    background: #10b981;
+}
+
+.toast.error {
+    background: #ef4444;
+}
+
+.toast.warning {
+    background: #f59e0b;
+}
+
+/* Admin dashboard specific styles */
+.admin-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.admin-card:hover {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: var(--primary-red);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-red);
+}
+
+/* WhatsApp widget animation */
+.whatsapp-widget {
+    animation: pulse 3s infinite;
+}
+
+.whatsapp-widget:hover {
+    animation: none;
+    transform: scale(1.1);
+}
