@@ -22,14 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializePolling();
     initializeStreamSwitching();
     setupEventListeners();
-    
-    // Initialize other components
-    if (typeof initializeChat === 'function') {
-        initializeChat();
-    }
-    if (typeof initializeReactions === 'function') {
-        initializeReactions();
-    }
 });
 
 function initializePlayers() {
@@ -51,15 +43,15 @@ function initializePlayers() {
         });
 
         videoPlayer.on('loadstart', () => {
-            console.log('Video loading started');
+            updateConnectionStatus('connecting');
         });
 
         videoPlayer.on('canplay', () => {
-            console.log('Video ready to play');
+            updateConnectionStatus('online');
         });
 
         videoPlayer.on('waiting', () => {
-            console.log('Video buffering');
+            updateConnectionStatus('buffering');
         });
 
         videoPlayer.on('error', () => {
@@ -71,11 +63,11 @@ function initializePlayers() {
     radioPlayer = document.getElementById('radioPlayer');
     if (radioPlayer) {
         radioPlayer.addEventListener('loadstart', () => {
-            console.log('Radio loading started');
+            updateConnectionStatus('connecting');
         });
 
         radioPlayer.addEventListener('canplay', () => {
-            console.log('Radio ready to play');
+            updateConnectionStatus('online');
         });
 
         radioPlayer.addEventListener('error', () => {
@@ -329,13 +321,11 @@ function showFloatingReaction(reaction) {
 }
 
 function initializeStreamSwitching() {
-    const streamButtons = document.querySelectorAll('.tab-btn');
+    const streamButtons = document.querySelectorAll('.stream-tab');
     streamButtons.forEach(button => {
         button.addEventListener('click', () => {
             const streamType = button.getAttribute('data-stream');
-            if (streamType) {
-                switchStream(streamType);
-            }
+            switchStream(streamType);
         });
     });
 }
@@ -346,23 +336,22 @@ function switchStream(streamType) {
     currentStream = streamType;
     
     // Update active tab
-    document.querySelectorAll('.tab-btn').forEach(tab => {
+    document.querySelectorAll('.stream-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    const activeTab = document.querySelector(`[data-stream="${streamType}"]`);
-    if (activeTab) activeTab.classList.add('active');
+    document.querySelector(`[data-stream="${streamType}"]`).classList.add('active');
     
     // Show/hide appropriate player
-    const tvContainer = document.getElementById('tvContainer');
-    const radioContainer = document.getElementById('radioContainer');
+    const tvContainer = document.getElementById('tv-container');
+    const radioContainer = document.getElementById('radio-container');
     
     if (streamType === 'tv') {
-        if (tvContainer) tvContainer.style.display = 'block';
-        if (radioContainer) radioContainer.style.display = 'none';
+        tvContainer.style.display = 'block';
+        radioContainer.style.display = 'none';
         if (radioPlayer) radioPlayer.pause();
     } else {
-        if (tvContainer) tvContainer.style.display = 'none';
-        if (radioContainer) radioContainer.style.display = 'block';
+        tvContainer.style.display = 'none';
+        radioContainer.style.display = 'block';
         if (videoPlayer) videoPlayer.pause();
     }
     
@@ -370,39 +359,6 @@ function switchStream(streamType) {
     loadReactions();
     
     showNotification(`Switched to ${streamType.toUpperCase()} stream`, 'success');
-}
-
-function initializeVideoPlayer() {
-    // This function is called from video-controls.js
-    // Initialize Video.js player with additional controls
-    const videoElement = document.getElementById('oromaTV');
-    if (videoElement && typeof videojs !== 'undefined') {
-        videoPlayer = videojs(videoElement, {
-            controls: true,
-            preload: 'auto',
-            responsive: true,
-            fluid: true,
-            html5: {
-                hls: {
-                    enableLowInitialPlaylist: true,
-                    smoothQualityChange: true,
-                    overrideNative: true
-                }
-            }
-        });
-
-        videoPlayer.on('loadstart', () => {
-            console.log('Video loading started');
-        });
-
-        videoPlayer.on('canplay', () => {
-            console.log('Video ready to play');
-        });
-
-        videoPlayer.on('error', () => {
-            showNotification('Video stream error. Please try again.', 'error');
-        });
-    }
 }
 
 function setupEventListeners() {
@@ -419,36 +375,20 @@ function setupEventListeners() {
             }
         });
     }
-    
-    // Add missing function reference fallback
-    if (typeof initializeWebSocket === 'undefined') {
-        window.initializeWebSocket = function() {
-            console.log('WebSocket disabled - using PHP polling');
-        };
-    }
 
     // Share button
-    const shareButton = document.getElementById('shareBtn');
+    const shareButton = document.getElementById('shareButton');
     if (shareButton) {
         shareButton.addEventListener('click', () => {
             if (navigator.share) {
                 navigator.share({
-                    title: 'Oroma TV - Live Streaming from Northern Uganda',
-                    text: 'Watch live TV and listen to QFM Radio 94.3 FM from Lira City, Northern Uganda',
+                    title: 'Oroma TV - Live Streaming',
+                    text: 'Watch live TV and listen to QFM Radio 94.3 FM',
                     url: 'https://www.oromatv.com'
                 });
             } else {
                 // Fallback to clipboard
                 navigator.clipboard.writeText('https://www.oromatv.com').then(() => {
-                    showNotification('Link copied to clipboard!', 'success');
-                }).catch(() => {
-                    // Manual copy fallback
-                    const textArea = document.createElement('textarea');
-                    textArea.value = 'https://www.oromatv.com';
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
                     showNotification('Link copied to clipboard!', 'success');
                 });
             }

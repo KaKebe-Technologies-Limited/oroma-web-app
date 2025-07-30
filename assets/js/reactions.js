@@ -70,12 +70,6 @@ function loadReactions() {
 }
 
 function updateReactionsDisplay(reactionsData) {
-    // Check if reactionsData exists and has the expected structure
-    if (!reactionsData) {
-        console.warn('No reactions data provided');
-        return;
-    }
-    
     // Update individual reaction counts
     const reactions = ['love', 'like', 'wow', 'laugh', 'fire'];
     

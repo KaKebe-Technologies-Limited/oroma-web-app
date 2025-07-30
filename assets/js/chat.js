@@ -138,11 +138,11 @@ function loadChatHistory() {
 
 function loadChatMessages(messages) {
     const chatMessages = document.getElementById('chatMessages');
-    if (!chatMessages || !messages || !Array.isArray(messages)) return;
+    if (!chatMessages) return;
     
     // Remove welcome message if it exists
     const welcomeMessage = chatMessages.querySelector('.chat-welcome');
-    if (welcomeMessage && messages && Array.isArray(messages) && messages.length > 0) {
+    if (welcomeMessage && messages.length > 0) {
         welcomeMessage.remove();
     }
     
@@ -200,7 +200,7 @@ function addChatMessage(messageData, shouldScroll = true) {
     
     // Limit number of messages in DOM to prevent performance issues
     const messages = chatMessages.querySelectorAll('.chat-message');
-    if (messages && messages.length > 50) {
+    if (messages.length > 50) {
         messages[0].remove();
     }
     
@@ -258,7 +258,7 @@ setInterval(() => {
         fetch(`/api/chat.php?since=${lastChatMessageTime}`)
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.data && data.data.messages && Array.isArray(data.data.messages) && data.data.messages.length > 0) {
+                if (data.success && data.data.messages && data.data.messages.length > 0) {
                     data.data.messages.forEach(message => {
                         addChatMessage(message, true);
                     });

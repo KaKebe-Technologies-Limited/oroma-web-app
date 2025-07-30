@@ -129,14 +129,14 @@ $stream_stats = $stmt->fetchAll();
 
     <!-- Welcome Banner -->
     <div class="welcome-banner">
-        <div class="container-fluid px-3 px-md-4 px-lg-5">
-            <h1><i class="fas fa-sun me-2"></i>Good Afternoon! Welcome to Oroma TV & QFM Radio 94.3 FM</h1>
+        <div class="container">
+            <h1><i class="fas fa-sun me-2"></i>Good Afternoon! Welcome to Oroma TV & OFM Radio</h1>
             <p><?php echo $site_config['site_tagline']; ?></p>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div class="container-fluid mt-4 px-3 px-md-4 px-lg-5">
+    <div class="container-fluid mt-4">
         <div class="row">
             <!-- Left Side - Video/Radio Player -->
             <div class="col-lg-8 mb-4">
@@ -146,7 +146,7 @@ $stream_stats = $stmt->fetchAll();
                         <i class="fas fa-tv me-2"></i>TV Oroma
                     </button>
                     <button class="tab-btn" data-stream="radio">
-                        <i class="fas fa-radio me-2"></i>QFM Radio 94.3 FM
+                        <i class="fas fa-radio me-2"></i>OFM Radio
                     </button>
                     <button class="share-btn" id="shareBtn">
                         <i class="fas fa-share-alt me-1"></i>Share
@@ -162,7 +162,7 @@ $stream_stats = $stmt->fetchAll();
                             controls
                             preload="auto"
                             data-setup='{}'>
-                            <source src="<?php echo $site_config['https://mediaserver.oromatv.com/LiveApp/streams/12345.m3u8']; ?>" type="application/x-mpegURL">
+                            <source src="<?php echo $site_config['stream_url']; ?>" type="application/x-mpegURL">
                             <p class="vjs-no-js">
                                 To view this video please enable JavaScript, and consider upgrading to a web browser that
                                 <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
@@ -223,7 +223,23 @@ $stream_stats = $stmt->fetchAll();
                     </div>
                 </div>
 
-
+                <!-- Stream Status -->
+                <div class="stream-status mt-3">
+                    <div class="status-item">
+                        <span class="status-label">Connection:</span>
+                        <span class="status-value" id="connectionStatus">
+                            <i class="fas fa-circle text-success"></i> Online
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Quality:</span>
+                        <span class="status-value" id="qualityStatus">HD</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Latency:</span>
+                        <span class="status-value" id="latencyStatus">2.3s</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Right Side - Reactions and Chat -->
