@@ -1,560 +1,535 @@
-/**
- * Oroma TV Main JavaScript
- * Handles streaming, live interactions, and UI functionality
- */
+// Global variables
+let videoPlayer = null;
+let radioPlayer = null;
+let currentStream = 'tv';
+let lastChatUpdate = 0;
+let pollingIntervals = {
+    chat: null,
+    reactions: null,
+    status: null
+};
 
-class OromaTVApp {
-    constructor() {
-        this.currentStream = 'tv';
-        this.videoPlayer = null;
-        this.audioPlayer = null;
-        this.hls = null;
-        this.userSession = this.generateSessionId();
-        this.username = localStorage.getItem('username') || '';
-        
-        this.init();
-    }
-    
-    init() {
-        this.setupEventListeners();
-        this.setupMobileMenu();
-        this.initializeStreaming();
-        this.startLiveUpdates();
-        this.requestUsername();
-    }
-    
-    generateSessionId() {
-        return 'session_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-    }
-    
-    setupEventListeners() {
-        // Stream tab switching
-        const tvTab = document.getElementById('tv-tab');
-        const radioTab = document.getElementById('radio-tab');
-        
-        if (tvTab) tvTab.addEventListener('click', () => this.switchStream('tv'));
-        if (radioTab) radioTab.addEventListener('click', () => this.switchStream('radio'));
-        
-        // Reaction buttons
-        document.querySelectorAll('.reaction-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const reaction = e.target.getAttribute('data-reaction');
-                this.sendReaction(reaction);
-                this.createFloatingReaction(reaction, e.target);
-            });
-        });
-        
-        // Comment system
-        const sendBtn = document.getElementById('send-comment-btn');
-        const commentInput = document.getElementById('comment-input');
-        
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => this.sendComment());
-        }
-        
-        if (commentInput) {
-            commentInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendComment();
-                }
-            });
-        }
-        
-        // Song request form
-        const songForm = document.getElementById('song-request-form');
-        if (songForm) {
-            songForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.submitSongRequest(new FormData(songForm));
-            });
-        }
-        
-        // Radio controls
-        const playBtn = document.getElementById('play-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        
-        if (playBtn) playBtn.addEventListener('click', () => this.playRadio());
-        if (stopBtn) stopBtn.addEventListener('click', () => this.stopRadio());
-    }
-    
-    setupMobileMenu() {
-        const menuBtn = document.getElementById('mobile-menu-btn');
-        const mobileMenu = document.getElementById('mobile-menu');
-        
-        if (menuBtn && mobileMenu) {
-            menuBtn.addEventListener('click', () => {
-                mobileMenu.classList.toggle('hidden');
-            });
-        }
-    }
-    
-    async initializeStreaming() {
-        this.videoPlayer = document.getElementById('tv-video');
-        this.audioPlayer = document.getElementById('radio-audio');
-        
-        if (this.videoPlayer) {
-            this.setupVideoPlayer();
-        }
-        
-        // Join active users
-        await this.joinActiveUsers();
-    }
-    
-    setupVideoPlayer() {
-        if (Hls.isSupported()) {
-            this.hls = new Hls({
-                enableWorker: true,
-                lowLatencyMode: true,
-                backBufferLength: 90
-            });
-            
-            this.hls.loadSource(this.videoPlayer.querySelector('source').src);
-            this.hls.attachMedia(this.videoPlayer);
-            
-            this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                console.log('HLS manifest parsed');
-                this.updateStreamStatus('Connected', 'success');
-                this.hideLoading();
-            });
-            
-            this.hls.on(Hls.Events.ERROR, (event, data) => {
-                if (data.fatal) {
-                    this.updateStreamStatus('Connection Error', 'error');
-                    this.handleStreamError(data);
-                }
-            });
-        } else if (this.videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS support (Safari)
-            this.videoPlayer.src = this.videoPlayer.querySelector('source').src;
-            this.videoPlayer.addEventListener('loadedmetadata', () => {
-                this.updateStreamStatus('Connected', 'success');
-                this.hideLoading();
-            });
-        }
-    }
-    
-    switchStream(type) {
-        this.currentStream = type;
-        
-        const tvTab = document.getElementById('tv-tab');
-        const radioTab = document.getElementById('radio-tab');
-        const tvPlayer = document.getElementById('tv-player');
-        const radioPlayer = document.getElementById('radio-player');
-        const streamTitle = document.getElementById('stream-title');
-        
-        // Update tabs
-        tvTab.className = type === 'tv' ? 
-            'px-6 py-3 rounded-md bg-red-600 text-white transition-all' :
-            'px-6 py-3 rounded-md text-gray-300 hover:text-white transition-all';
-            
-        radioTab.className = type === 'radio' ? 
-            'px-6 py-3 rounded-md bg-red-600 text-white transition-all' :
-            'px-6 py-3 rounded-md text-gray-300 hover:text-white transition-all';
-        
-        // Update players
-        if (type === 'tv') {
-            tvPlayer.classList.remove('hidden');
-            radioPlayer.classList.add('hidden');
-            streamTitle.textContent = 'TV Oroma Live';
-        } else {
-            tvPlayer.classList.add('hidden');
-            radioPlayer.classList.remove('hidden');
-            streamTitle.textContent = 'QFM Radio 94.3 FM';
-        }
-        
-        // Update reaction buttons for context
-        this.updateReactionButtons(type);
-        
-        // Update viewer count
-        this.updateViewerCount();
-    }
-    
-    updateReactionButtons(streamType) {
-        const buttons = document.querySelectorAll('.reaction-btn');
-        
-        if (streamType === 'tv') {
-            // TV reactions: ❤️ 👍 👀 👏 🔥
-            const tvReactions = ['❤️', '👍', '👀', '👏', '🔥'];
-            buttons.forEach((btn, index) => {
-                if (tvReactions[index]) {
-                    btn.textContent = tvReactions[index];
-                    btn.setAttribute('data-reaction', tvReactions[index]);
-                }
-            });
-        } else {
-            // Radio reactions: 🎵 🎧 💃 🎤 🔊
-            const radioReactions = ['🎵', '🎧', '💃', '🎤', '🔊'];
-            buttons.forEach((btn, index) => {
-                if (radioReactions[index]) {
-                    btn.textContent = radioReactions[index];
-                    btn.setAttribute('data-reaction', radioReactions[index]);
-                }
-            });
-        }
-    }
-    
-    playRadio() {
-        const audio = this.audioPlayer;
-        if (audio) {
-            audio.play().then(() => {
-                this.updateStreamStatus('Playing', 'success');
-            }).catch(err => {
-                console.error('Radio play error:', err);
-                this.updateStreamStatus('Play Error', 'error');
-            });
-        }
-    }
-    
-    stopRadio() {
-        const audio = this.audioPlayer;
-        if (audio) {
-            audio.pause();
-            audio.currentTime = 0;
-            this.updateStreamStatus('Stopped', 'warning');
-        }
-    }
-    
-    async sendReaction(reaction) {
-        try {
-            await this.apiRequest('/api/live-reactions', {
-                method: 'POST',
-                body: JSON.stringify({
-                    stream_type: this.currentStream,
-                    reaction_type: reaction,
-                    user_session: this.userSession
-                })
-            });
-        } catch (error) {
-            console.error('Failed to send reaction:', error);
-        }
-    }
-    
-    createFloatingReaction(reaction, element) {
-        const rect = element.getBoundingClientRect();
-        const floatingReaction = document.createElement('div');
-        floatingReaction.className = 'floating-reaction';
-        floatingReaction.textContent = reaction;
-        floatingReaction.style.left = rect.left + 'px';
-        floatingReaction.style.top = rect.top + 'px';
-        
-        document.body.appendChild(floatingReaction);
-        
-        setTimeout(() => {
-            floatingReaction.remove();
-        }, 2000);
-    }
-    
-    async sendComment() {
-        const commentInput = document.getElementById('comment-input');
-        const usernameInput = document.getElementById('username-input');
-        
-        const comment = commentInput.value.trim();
-        const username = usernameInput.value.trim() || this.username || 'Anonymous';
-        
-        if (!comment) return;
-        
-        try {
-            await this.apiRequest('/api/live-comments', {
-                method: 'POST',
-                body: JSON.stringify({
-                    stream_type: this.currentStream,
-                    username: username,
-                    comment: comment,
-                    user_session: this.userSession
-                })
-            });
-            
-            commentInput.value = '';
-            if (username !== 'Anonymous') {
-                this.username = username;
-                localStorage.setItem('username', username);
-            }
-            
-        } catch (error) {
-            console.error('Failed to send comment:', error);
-            this.showToast('Failed to send message', 'error');
-        }
-    }
-    
-    async submitSongRequest(formData) {
-        try {
-            const data = {
-                song_title: formData.get('song_title'),
-                artist: formData.get('artist'),
-                requester_name: formData.get('requester_name'),
-                message: formData.get('message') || ''
-            };
-            
-            await this.apiRequest('/api/song-requests', {
-                method: 'POST',
-                body: JSON.stringify(data)
-            });
-            
-            document.getElementById('song-request-form').reset();
-            this.showToast('Song request submitted successfully!', 'success');
-            
-        } catch (error) {
-            console.error('Failed to submit song request:', error);
-            this.showToast('Failed to submit song request', 'error');
-        }
-    }
-    
-    async joinActiveUsers() {
-        try {
-            await this.apiRequest('/api/active-users/join', {
-                method: 'POST',
-                body: JSON.stringify({
-                    stream_type: this.currentStream,
-                    user_session: this.userSession,
-                    username: this.username || null
-                })
-            });
-        } catch (error) {
-            console.error('Failed to join active users:', error);
-        }
-    }
-    
-    startLiveUpdates() {
-        // Update viewer count every 5 seconds
-        setInterval(() => this.updateViewerCount(), 5000);
-        
-        // Update comments every 3 seconds
-        setInterval(() => this.updateComments(), 3000);
-        
-        // Update reactions every 2 seconds
-        setInterval(() => this.updateReactions(), 2000);
-        
-        // Send heartbeat every 30 seconds
-        setInterval(() => this.sendHeartbeat(), 30000);
-        
-        // Clean up old data every minute
-        setInterval(() => this.cleanup(), 60000);
-    }
-    
-    async updateViewerCount() {
-        try {
-            const response = await this.apiRequest(`/api/active-users/count/${this.currentStream}`);
-            const data = await response.json();
-            
-            const viewerCount = document.getElementById('viewer-count');
-            if (viewerCount) {
-                viewerCount.textContent = data.count || 0;
-            }
-        } catch (error) {
-            console.error('Failed to update viewer count:', error);
-        }
-    }
-    
-    async updateComments() {
-        try {
-            const response = await this.apiRequest(`/api/live-comments/${this.currentStream}`);
-            const comments = await response.json();
-            
-            const container = document.getElementById('comments-container');
-            if (container) {
-                container.innerHTML = '';
-                
-                comments.forEach(comment => {
-                    const commentEl = this.createCommentElement(comment);
-                    container.appendChild(commentEl);
-                });
-                
-                container.scrollTop = container.scrollHeight;
-            }
-        } catch (error) {
-            console.error('Failed to update comments:', error);
-        }
-    }
-    
-    async updateReactions() {
-        try {
-            const response = await this.apiRequest(`/api/live-reactions/${this.currentStream}`);
-            const reactions = await response.json();
-            
-            const container = document.getElementById('recent-reactions');
-            if (container) {
-                container.innerHTML = '';
-                
-                reactions.slice(-10).forEach(reaction => {
-                    const reactionEl = document.createElement('span');
-                    reactionEl.className = 'inline-block text-lg mr-1 animate-pulse';
-                    reactionEl.textContent = reaction.reaction_type;
-                    container.appendChild(reactionEl);
-                });
-            }
-        } catch (error) {
-            console.error('Failed to update reactions:', error);
-        }
-    }
-    
-    async sendHeartbeat() {
-        try {
-            await this.apiRequest('/api/active-users/heartbeat', {
-                method: 'POST',
-                body: JSON.stringify({
-                    user_session: this.userSession,
-                    stream_type: this.currentStream
-                })
-            });
-        } catch (error) {
-            console.error('Failed to send heartbeat:', error);
-        }
-    }
-    
-    createCommentElement(comment) {
-        const div = document.createElement('div');
-        div.className = 'chat-message';
-        
-        div.innerHTML = `
-            <div class="flex justify-between items-start">
-                <span class="chat-username">${this.escapeHtml(comment.username)}</span>
-                <span class="chat-time">${this.timeAgo(comment.created_at)}</span>
-            </div>
-            <div class="chat-content">${this.escapeHtml(comment.comment)}</div>
-        `;
-        
-        return div;
-    }
-    
-    updateStreamStatus(status, type = 'info') {
-        const statusEl = document.getElementById('stream-status');
-        if (statusEl) {
-            statusEl.textContent = status;
-            statusEl.className = `text-sm ${
-                type === 'success' ? 'text-green-400' :
-                type === 'error' ? 'text-red-400' :
-                type === 'warning' ? 'text-yellow-400' :
-                'text-gray-400'
-            }`;
-        }
-    }
-    
-    hideLoading() {
-        const loading = document.getElementById('tv-loading');
-        if (loading) {
-            loading.style.display = 'none';
-        }
-    }
-    
-    handleStreamError(data) {
-        console.error('HLS Error:', data);
-        
-        // Try to recover from error
-        if (this.hls) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                this.hls.startLoad();
-            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                this.hls.recoverMediaError();
-            }
-        }
-    }
-    
-    requestUsername() {
-        if (!this.username) {
-            const username = prompt('Enter your name for chat (optional):');
-            if (username) {
-                this.username = username.trim();
-                localStorage.setItem('username', this.username);
-                
-                const usernameInput = document.getElementById('username-input');
-                if (usernameInput) {
-                    usernameInput.value = this.username;
-                }
-            }
-        } else {
-            const usernameInput = document.getElementById('username-input');
-            if (usernameInput) {
-                usernameInput.value = this.username;
-            }
-        }
-    }
-    
-    async apiRequest(url, options = {}) {
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
-        
-        return fetch(url, { ...defaultOptions, ...options });
-    }
-    
-    showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    }
-    
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    timeAgo(dateString) {
-        const date = new Date(dateString);
-        const now = new Date();
-        const seconds = Math.floor((now - date) / 1000);
-        
-        if (seconds < 60) return 'now';
-        if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-        return `${Math.floor(seconds / 86400)}d`;
-    }
-    
-    cleanup() {
-        // Remove old floating reactions
-        document.querySelectorAll('.floating-reaction').forEach(el => {
-            if (Date.now() - parseInt(el.dataset.created || 0) > 5000) {
-                el.remove();
-            }
-        });
-    }
+// Add missing function for WebSocket compatibility
+function sendWebSocketMessage(message) {
+    console.log('WebSocket message converted to polling:', message);
+    // This function is kept for compatibility but does nothing
+    // since we're using PHP polling instead of WebSocket
 }
 
-// Initialize streaming functions for backward compatibility
-function initializeStreaming() {
-    // Already handled in OromaTVApp constructor
-}
-
-function initializeLiveFeatures() {
-    // Already handled in OromaTVApp constructor
-}
-
-// Initialize the app when DOM is loaded
+// Initialize the main application
 document.addEventListener('DOMContentLoaded', function() {
-    window.oromaTVApp = new OromaTVApp();
+    initializePlayers();
+    initializePolling();
+    initializeStreamSwitching();
+    setupEventListeners();
+    
+    // Initialize other components
+    if (typeof initializeChat === 'function') {
+        initializeChat();
+    }
+    if (typeof initializeReactions === 'function') {
+        initializeReactions();
+    }
 });
 
-// Handle page visibility changes
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-        // Page is hidden, reduce update frequency
-        if (window.oromaTVApp) {
-            window.oromaTVApp.sendHeartbeat();
+function initializePlayers() {
+    // Initialize video player with Video.js
+    const videoElement = document.getElementById('videoPlayer');
+    if (videoElement && typeof videojs !== 'undefined') {
+        videoPlayer = videojs(videoElement, {
+            controls: true,
+            preload: 'auto',
+            responsive: true,
+            fluid: true,
+            html5: {
+                hls: {
+                    enableLowInitialPlaylist: true,
+                    smoothQualityChange: true,
+                    overrideNative: true
+                }
+            }
+        });
+
+        videoPlayer.on('loadstart', () => {
+            console.log('Video loading started');
+        });
+
+        videoPlayer.on('canplay', () => {
+            console.log('Video ready to play');
+        });
+
+        videoPlayer.on('waiting', () => {
+            console.log('Video buffering');
+        });
+
+        videoPlayer.on('error', () => {
+            showNotification('Video stream error. Please try again.', 'error');
+        });
+    }
+
+    // Initialize radio player
+    radioPlayer = document.getElementById('radioPlayer');
+    if (radioPlayer) {
+        radioPlayer.addEventListener('loadstart', () => {
+            console.log('Radio loading started');
+        });
+
+        radioPlayer.addEventListener('canplay', () => {
+            console.log('Radio ready to play');
+        });
+
+        radioPlayer.addEventListener('error', () => {
+            showNotification('Radio stream error. Please try again.', 'error');
+        });
+    }
+}
+
+function initializePolling() {
+    console.log('Initializing PHP polling for real-time features');
+    
+    // Poll chat messages every 2 seconds
+    pollingIntervals.chat = setInterval(() => {
+        loadChatMessages();
+    }, 2000);
+    
+    // Poll reactions every 3 seconds
+    pollingIntervals.reactions = setInterval(() => {
+        loadReactions();
+    }, 3000);
+    
+    // Poll stream status every 10 seconds
+    pollingIntervals.status = setInterval(() => {
+        loadStreamStatus();
+    }, 10000);
+    
+    // Initial load
+    loadChatMessages();
+    loadReactions();
+    loadStreamStatus();
+    
+    console.log('PHP polling initialized');
+}
+
+function stopPolling() {
+    Object.values(pollingIntervals).forEach(interval => {
+        if (interval) clearInterval(interval);
+    });
+    pollingIntervals = { chat: null, reactions: null, status: null };
+}
+
+function loadChatMessages() {
+    const since = lastChatUpdate;
+    fetch(`/api/chat.php?limit=20&since=${since}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data && data.data.messages && Array.isArray(data.data.messages) && data.data.messages.length > 0) {
+                data.data.messages.forEach(message => {
+                    addChatMessage(message);
+                    lastChatUpdate = Math.max(lastChatUpdate, message.timestamp || 0);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chat messages:', error);
+        });
+}
+
+function loadReactions() {
+    fetch(`/api/reactions.php?stream_type=${currentStream}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateReactionsDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading reactions:', error);
+        });
+}
+
+function loadStreamStatus() {
+    fetch('/api/stream-status.php?type=all')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStreamStatusDisplay(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading stream status:', error);
+        });
+}
+
+function sendChatMessage(name, message) {
+    if (!name.trim() || !message.trim()) {
+        showNotification('Please enter both name and message', 'warning');
+        return;
+    }
+
+    fetch('/api/chat.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            name: name.trim(),
+            message: message.trim(),
+            stream_type: currentStream
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Message will be loaded by next polling cycle
+            document.getElementById('chatMessage').value = '';
+        } else {
+            showNotification(data.error || 'Failed to send message', 'error');
         }
+    })
+    .catch(error => {
+        console.error('Error sending chat message:', error);
+        showNotification('Failed to send message', 'error');
+    });
+}
+
+function sendReaction(reaction) {
+    const button = document.querySelector(`[onclick="sendReaction('${reaction}')"]`);
+    if (button) {
+        button.disabled = true;
+        setTimeout(() => button.disabled = false, 2000);
+    }
+
+    fetch('/api/reactions.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            type: reaction,
+            stream_type: currentStream
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showFloatingReaction(reaction);
+            // Reactions will be updated by next polling cycle
+        } else {
+            showNotification(data.error || 'Failed to send reaction', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending reaction:', error);
+        showNotification('Failed to send reaction', 'error');
+    });
+}
+
+function addChatMessage(message) {
+    const chatContainer = document.getElementById('chatMessages');
+    if (!chatContainer) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message';
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="username">${escapeHtml(message.name || message.username)}</span>
+            <span class="timestamp">${message.formatted_time || formatTime(message.timestamp)}</span>
+        </div>
+        <div class="message-content">${escapeHtml(message.message)}</div>
+    `;
+
+    // Check if this message already exists
+    const existingMessages = chatContainer.querySelectorAll('.chat-message');
+    for (let existing of existingMessages) {
+        const existingContent = existing.querySelector('.message-content').textContent;
+        const existingUser = existing.querySelector('.username').textContent;
+        if (existingContent === message.message && existingUser === (message.name || message.username)) {
+            return; // Message already exists
+        }
+    }
+
+    chatContainer.appendChild(messageDiv);
+    
+    // Keep only last 50 messages
+    while (chatContainer.children.length > 50) {
+        chatContainer.removeChild(chatContainer.firstChild);
+    }
+    
+    // Auto-scroll to bottom
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function updateReactionsDisplay(reactions) {
+    // Update reaction counts
+    const reactionTypes = ['👍', '🔥', '😂', '😢', '👏'];
+    reactionTypes.forEach(type => {
+        const countElement = document.getElementById(`${type}-count`);
+        if (countElement && reactions[type] !== undefined) {
+            countElement.textContent = reactions[type];
+        }
+    });
+
+    // Update total and viewers
+    const totalElement = document.getElementById('total-reactions');
+    if (totalElement && reactions.total !== undefined) {
+        totalElement.textContent = reactions.total;
+    }
+
+    const viewersElement = document.getElementById('active-viewers');
+    if (viewersElement && reactions.active_viewers !== undefined) {
+        viewersElement.textContent = reactions.active_viewers;
+    }
+}
+
+function updateStreamStatusDisplay(status) {
+    if (status.tv) {
+        const tvStatus = document.getElementById('tv-status');
+        if (tvStatus) {
+            tvStatus.textContent = status.tv.status;
+            tvStatus.className = `status-indicator ${status.tv.status}`;
+        }
+        
+        const tvViewers = document.getElementById('tv-viewers');
+        if (tvViewers) {
+            tvViewers.textContent = status.tv.viewers;
+        }
+    }
+
+    if (status.radio) {
+        const radioStatus = document.getElementById('radio-status');
+        if (radioStatus) {
+            radioStatus.textContent = status.radio.status;
+            radioStatus.className = `status-indicator ${status.radio.status}`;
+        }
+        
+        const radioListeners = document.getElementById('radio-listeners');
+        if (radioListeners) {
+            radioListeners.textContent = status.radio.listeners || status.radio.viewers;
+        }
+    }
+}
+
+function showFloatingReaction(reaction) {
+    const container = document.getElementById('floating-reactions');
+    if (!container) return;
+
+    const reactionElement = document.createElement('div');
+    reactionElement.className = 'floating-reaction';
+    reactionElement.textContent = reaction;
+    reactionElement.style.left = Math.random() * 80 + 10 + '%';
+    
+    container.appendChild(reactionElement);
+    
+    // Remove after animation
+    setTimeout(() => {
+        if (container.contains(reactionElement)) {
+            container.removeChild(reactionElement);
+        }
+    }, 3000);
+}
+
+function initializeStreamSwitching() {
+    const streamButtons = document.querySelectorAll('.tab-btn');
+    streamButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const streamType = button.getAttribute('data-stream');
+            if (streamType) {
+                switchStream(streamType);
+            }
+        });
+    });
+}
+
+function switchStream(streamType) {
+    if (streamType === currentStream) return;
+    
+    currentStream = streamType;
+    
+    // Update active tab
+    document.querySelectorAll('.tab-btn').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    const activeTab = document.querySelector(`[data-stream="${streamType}"]`);
+    if (activeTab) activeTab.classList.add('active');
+    
+    // Show/hide appropriate player
+    const tvContainer = document.getElementById('tvContainer');
+    const radioContainer = document.getElementById('radioContainer');
+    
+    if (streamType === 'tv') {
+        if (tvContainer) tvContainer.style.display = 'block';
+        if (radioContainer) radioContainer.style.display = 'none';
+        if (radioPlayer) radioPlayer.pause();
     } else {
-        // Page is visible, resume normal updates
-        if (window.oromaTVApp) {
-            window.oromaTVApp.updateViewerCount();
-            window.oromaTVApp.updateComments();
+        if (tvContainer) tvContainer.style.display = 'none';
+        if (radioContainer) radioContainer.style.display = 'block';
+        if (videoPlayer) videoPlayer.pause();
+    }
+    
+    // Reload reactions for new stream type
+    loadReactions();
+    
+    showNotification(`Switched to ${streamType.toUpperCase()} stream`, 'success');
+}
+
+function initializeVideoPlayer() {
+    // This function is called from video-controls.js
+    // Initialize Video.js player with additional controls
+    const videoElement = document.getElementById('oromaTV');
+    if (videoElement && typeof videojs !== 'undefined') {
+        videoPlayer = videojs(videoElement, {
+            controls: true,
+            preload: 'auto',
+            responsive: true,
+            fluid: true,
+            html5: {
+                hls: {
+                    enableLowInitialPlaylist: true,
+                    smoothQualityChange: true,
+                    overrideNative: true
+                }
+            }
+        });
+
+        videoPlayer.on('loadstart', () => {
+            console.log('Video loading started');
+        });
+
+        videoPlayer.on('canplay', () => {
+            console.log('Video ready to play');
+        });
+
+        videoPlayer.on('error', () => {
+            showNotification('Video stream error. Please try again.', 'error');
+        });
+    }
+}
+
+function setupEventListeners() {
+    // Chat form submission
+    const chatForm = document.getElementById('chatForm');
+    if (chatForm) {
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('chatName');
+            const messageInput = document.getElementById('chatMessage');
+            
+            if (nameInput && messageInput) {
+                sendChatMessage(nameInput.value, messageInput.value);
+            }
+        });
+    }
+    
+    // Add missing function reference fallback
+    if (typeof initializeWebSocket === 'undefined') {
+        window.initializeWebSocket = function() {
+            console.log('WebSocket disabled - using PHP polling');
+        };
+    }
+
+    // Share button
+    const shareButton = document.getElementById('shareBtn');
+    if (shareButton) {
+        shareButton.addEventListener('click', () => {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Oroma TV - Live Streaming from Northern Uganda',
+                    text: 'Watch live TV and listen to QFM Radio 94.3 FM from Lira City, Northern Uganda',
+                    url: 'https://www.oromatv.com'
+                });
+            } else {
+                // Fallback to clipboard
+                navigator.clipboard.writeText('https://www.oromatv.com').then(() => {
+                    showNotification('Link copied to clipboard!', 'success');
+                }).catch(() => {
+                    // Manual copy fallback
+                    const textArea = document.createElement('textarea');
+                    textArea.value = 'https://www.oromatv.com';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showNotification('Link copied to clipboard!', 'success');
+                });
+            }
+        });
+    }
+}
+
+function updateConnectionStatus(status) {
+    const statusElement = document.getElementById('connection-status');
+    if (statusElement) {
+        statusElement.textContent = status;
+        statusElement.className = `connection-status ${status}`;
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
         }
+    }, 5000);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+}
+
+// Page visibility handling to pause/resume polling
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        console.log('Page hidden, reducing polling frequency');
+        stopPolling();
+        // Restart with longer intervals when page is hidden
+        pollingIntervals.chat = setInterval(loadChatMessages, 10000);
+        pollingIntervals.reactions = setInterval(loadReactions, 15000);
+        pollingIntervals.status = setInterval(loadStreamStatus, 30000);
+    } else {
+        console.log('Page visible, resuming normal polling');
+        stopPolling();
+        initializePolling();
     }
 });
 
-// Handle before unload
-window.addEventListener('beforeunload', function() {
-    if (window.oromaTVApp) {
-        // Send leave signal
-        navigator.sendBeacon('/api/active-users/leave', JSON.stringify({
-            user_session: window.oromaTVApp.userSession
-        }));
-    }
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    stopPolling();
+});
+
+// Tab navigation functionality (if needed for future pages)
+document.addEventListener('DOMContentLoaded', function() {
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link[data-tab]');
+    
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tab = link.getAttribute('data-tab');
+            
+            // Update active nav link
+            navLinks.forEach(nav => nav.classList.remove('active'));
+            link.classList.add('active');
+            
+            // Here you could implement tab switching logic
+            console.log('Switching to tab:', tab);
+        });
+    });
 });

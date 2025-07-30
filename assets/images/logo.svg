@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="45" height="45" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background rounded rectangle -->
+  <rect width="120" height="80" rx="8" fill="#8B0000"/>
+  
+  <!-- TV icon in yellow -->
+  <rect x="85" y="15" width="25" height="18" rx="2" fill="#FFD700"/>
+  <text x="97.5" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#8B0000">tv</text>
+  
+  <!-- Oroma text -->
+  <text x="10" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#8B0000" stroke="#FFD700" stroke-width="1">Oroma</text>
+  
+  <!-- Tagline -->
+  <text x="10" y="55" font-family="Arial, sans-serif" font-size="8" fill="#333" opacity="0.8">Dreams TV Today</text>
+</svg>
