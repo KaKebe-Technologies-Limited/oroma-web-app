@@ -162,7 +162,7 @@ $stream_stats = $stmt->fetchAll();
                             controls
                             preload="auto"
                             data-setup='{}'>
-                            <source src="<?php echo $site_config['stream_url']; ?>" type="application/x-mpegURL">
+                            <source src="<?php echo $site_config['https://mediaserver.oromatv.com/LiveApp/streams/12345.m3u8']; ?>" type="application/x-mpegURL">
                             <p class="vjs-no-js">
                                 To view this video please enable JavaScript, and consider upgrading to a web browser that
                                 <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>.
