@@ -8,7 +8,7 @@ This is a professional PHP-based live streaming platform featuring HLS video str
 
 - Preferred communication style: Simple, everyday language
 - Color scheme: Red (#8B0000) and yellow (#FFD700) branding
-- Radio station: QFM Radio 94.3 FM (not OFM)
+- Radio station: QFM Radio 94.3 FM (not QFM)
 - Navigation: Simplified to Home and Contact only (no About or News pages)
 - Contact info: Lira City, Northern Uganda location
 - Logo: Official Oroma TV PNG logo (no text branding)

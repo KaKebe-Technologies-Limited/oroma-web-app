@@ -130,7 +130,7 @@ $stream_stats = $stmt->fetchAll();
     <!-- Welcome Banner -->
     <div class="welcome-banner">
         <div class="container">
-            <h1><i class="fas fa-sun me-2"></i>Good Afternoon! Welcome to Oroma TV & OFM Radio</h1>
+            <h1><i class="fas fa-sun me-2"></i>Good Afternoon! Welcome to Oroma TV & QFM Radio</h1>
             <p><?php echo $site_config['site_tagline']; ?></p>
         </div>
     </div>
@@ -146,7 +146,7 @@ $stream_stats = $stmt->fetchAll();
                         <i class="fas fa-tv me-2"></i>TV Oroma
                     </button>
                     <button class="tab-btn" data-stream="radio">
-                        <i class="fas fa-radio me-2"></i>OFM Radio
+                        <i class="fas fa-radio me-2"></i>QFM Radio
                     </button>
                     <button class="share-btn" id="shareBtn">
                         <i class="fas fa-share-alt me-1"></i>Share
